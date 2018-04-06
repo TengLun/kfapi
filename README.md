@@ -7,6 +7,14 @@ This is simply my library to help me interact with their API, described here:
 
 https://support.kochava.com/analytics-reports-api/fraud-api
 
+# Import
+
+Here is the import code:
+
+```golang
+import "github.com/tenglun/kfapi"
+```
+
 # Retrieve Data
 
 Effort has been made to make this library simple and readable.
