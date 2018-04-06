@@ -7,7 +7,7 @@ This is simply my library to help me interact with their API, described here:
 
 https://support.kochava.com/analytics-reports-api/fraud-api
 
-# Import
+## Import
 
 Here is the import code:
 
@@ -15,7 +15,7 @@ Here is the import code:
 import "github.com/tenglun/kfapi"
 ```
 
-# Retrieve Data
+# Usage
 
 Effort has been made to make this library simple and readable.
 
@@ -26,16 +26,28 @@ as a marketer or network (which changes the calls).
 client, err := kfapi.GetAccount("my_api_key", "my_accound_id")
 ```
 
-Once the account has been initialized, data can be returned using the "list" endpoint, or the "data" endpoint. 
+## Retrieve Data
+
+Once the account has been initialized, data can be returned using the "List" endpoint, or the "GatherDataFrom" endpoint. 
 
 ```golang
 response, err := client.List.Apps("fraud type",start time, end time)
 ```
 
-Example:
+Example for List Endpoint:
 ```golang
 response, err := client.List.Apps(kfapi.AnonymousInstall, time.Unix(1510000000,0), time.Now())
 ```
+
+Example for Gather Endpoint:
+```golang
+response, err := client.GatherDataFrom.Networks(kfapi.AdStacking, time.Unix(1510000000,0), time.Now())
+```
+
+## Response
+
+All of the responses will be in an exported struct format called KFResponse. This format is being used to both unify the response 
+structure from the various calls, as well as to allow an easier "turnaround", sending data back to the API to add or remove from the blacklist.
 
 # Constants
 
@@ -51,7 +63,7 @@ kfapi.DeviceHighClickVolume
 etc.
 ```
 
-# Improvements that will happen
+# Improvements Coming Soon
 
 Currently, functionality is being worked on that will allow the return to be ported directly back to the API to add suspicious actors to the 
 blacklist, after some threshold has been applied.
