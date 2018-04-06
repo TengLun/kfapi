@@ -8,45 +8,61 @@ import (
 	"net/http"
 )
 
-func sendRequest(r request) (fraudresponse, error) {
+func sendRequest(accountID, view, startDate, endDate, format, fraudType, endpoint, authKey string, filters []filter) (KFResponse, error) {
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Println(err)
 		}
 	}()
 
-	reqBody, err := json.Marshal(r)
+	var req request
+	req.AccountID = accountID
+	req.View = "account"
+	req.StartDate = startDate
+	req.EndDate = endDate
+	req.Format = format
+	req.FraudType = fraudType
+	req.Filters = filters
+
+	reqBody, err := json.Marshal(req)
 	if err != nil {
 		fmt.Println(err)
-		return fraudresponse{}, err
+		return KFResponse{}, err
 	}
 
-	req, err := http.NewRequest("POST", "https://fraud.api.kochava.com:8320/fraud/platformdiff/network/data", bytes.NewBuffer(reqBody))
+	request, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(reqBody))
 	if err != nil {
 		fmt.Println(err)
-		return fraudresponse{}, err
+		return KFResponse{}, err
 	}
 
+	fmt.Printf("%#v\n", request)
+	fmt.Println(string(reqBody))
+	request.Header.Add("Authentication-Key", authKey)
 	machine := &http.Client{}
 
-	res, err := machine.Do(req)
+	res, err := machine.Do(request)
 	if err != nil {
-		return fraudresponse{}, err
+		fmt.Println(err)
+		return KFResponse{}, err
 	}
-
-	defer res.Body.Close()
 
 	resBody, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return fraudresponse{}, err
+		fmt.Println(err)
+		return KFResponse{}, err
 	}
 
-	var resp fraudresponse
+	fmt.Println(string(resBody))
 
-	err = json.Unmarshal(resBody, resp)
+	var resp KFResponse
+
+	err = json.Unmarshal(resBody, &resp)
 	if err != nil {
-		return fraudresponse{}, err
+		fmt.Println(err)
+		return KFResponse{}, err
 	}
 
 	return resp, nil
+
 }

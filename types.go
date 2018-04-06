@@ -51,33 +51,19 @@ type addResponse struct {
 }
 
 type request struct {
-	View      string `json:"view"`
-	FraudType string `json:"fraudType"`
-	AccountID string `json:"accountId"`
-	StartDate string `json:"startDate"`
-	EndDate   string `json:"endDate"`
-	Format    string `json:"format"`
-	Filters   []struct {
-		Dimension string   `json:"dimension"`
-		Values    []string `json:"values"`
-		Modifier  string   `json:"modifier"`
-	} `json:"filters,omitempty"`
+	View      string   `json:"view"`
+	FraudType string   `json:"fraudType"`
+	AccountID string   `json:"accountId"`
+	StartDate string   `json:"startDate"`
+	EndDate   string   `json:"endDate"`
+	Format    string   `json:"format"`
+	Filters   []filter `json:"filters,omitempty"`
 }
 
-type fraudresponse struct {
-	MetaData struct {
-		Headers []string `json:"headers"`
-	} `json:"metaData"`
-	Data []struct {
-		AppName         string `json:"appName,omitempty"`
-		AppID           string `json:"appId,omitempty"`
-		NetworkName     string `json:"networkName,omitempty"`
-		NetworkID       string `json:"networkId,omitempty"`
-		ClickCt         int    `json:"clickCt,omitempty"`
-		SameAcctClickCt int    `json:"sameAcctClickCt,omitempty"`
-		DiffAcctClickCt int    `json:"diffAcctClickCt,omitempty"`
-		InstallCt       int    `json:"installCt,omitempty"`
-	} `json:"data"`
+type filter struct {
+	Dimension string   `json:"dimension"`
+	Values    []string `json:"values"`
+	Modifier  string   `json:"modifier"`
 }
 
 const (

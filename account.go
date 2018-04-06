@@ -2,145 +2,183 @@ package kfapi
 
 import (
 	"bytes"
-	"encoding/json"
+	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"time"
 )
 
 type Account struct {
+	List           List
+	GatherDataFrom GatherDataFrom
+}
+
+type List struct {
 	AccountID string
 	Format    string
-	Type      string
+	View      string
 	ApiKey    string
 }
 
-func (a Account) ListApps(f string, startDate time.Time, endDate time.Time) error {
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println(err)
+type GatherDataFrom struct {
+	AccountID string
+	Format    string
+	View      string
+	ApiKey    string
+}
 
-		}
-	}()
+func GetAccount(apiKey string, accountID string) (*Account, error) {
 
-	endpoint := `https://fraud.api.kochava.com:8320/fraud/` + fraudEndpointMap[f] + `/list/apps`
+	var account Account
 
-	var req request
-	req.AccountID = a.AccountID
-	req.View = a.Type
-	req.StartDate = startDate.Format("2006-1-2")
-	req.EndDate = endDate.Format("2006-1-2")
-	req.Format = "json"
-	req.FraudType = f
+	view, err := getView(apiKey)
 
-	reqBody, err := json.Marshal(req)
 	if err != nil {
 		fmt.Println(err)
-		return err
+		return &Account{}, err
 	}
 
-	request, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(reqBody))
-	if err != nil {
-		fmt.Println(err)
-		return err
-	}
+	account.List.AccountID = accountID
+	account.List.ApiKey = apiKey
+	account.List.View = view
 
-	request.Header.Add("Authentication-Key", a.ApiKey)
+	account.GatherDataFrom.AccountID = accountID
+	account.GatherDataFrom.ApiKey = apiKey
+	account.GatherDataFrom.View = view
+
+	return &account, nil
+}
+
+func getView(apiKey string) (string, error) {
+	endpoint := "https://fraud.api.kochava.com:8320/fraud/installreceipt/tracker/data"
+	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer([]byte(`
+{
+  "view": "network",
+  "fraudType": "installReceiptVerification",
+  "accountId": "XXX",
+  "startDate": "2016-11-13",
+  "endDate": "2017-1-11",
+  "format": "JSON",
+  "filters": []
+}`)))
+
 	machine := &http.Client{}
 
-	res, err := machine.Do(request)
+	res, err := machine.Do(req)
 	if err != nil {
 		fmt.Println(err)
-		return err
+		return "", err
+	}
+	switch res.StatusCode {
+	case 200:
+		return "network", nil
+	case 403:
+		return "account", nil
+	default:
+		return "", errors.New(res.Status)
 	}
 
-	resBody, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		fmt.Println(err)
-		return err
+}
+
+func (l List) Apps(fraudType string, startDate, endDate time.Time, filters ...filter) (KFResponse, error) {
+
+	endpoint := `https://fraud.api.kochava.com:8320/fraud/` + fraudEndpointMap[fraudType] + `/list/apps`
+
+	return sendRequest(l.AccountID, l.View, startDate.Format("2006-1-2"), endDate.Format("2006-1-2"), "json", fraudType, endpoint, l.ApiKey, filters)
+
+}
+
+func (l List) Networks(fraudType string, startDate time.Time, endDate time.Time, filters ...filter) (KFResponse, error) {
+
+	endpoint := `https://fraud.api.kochava.com:8320/fraud/` + fraudEndpointMap[fraudType] + `/list/networks`
+
+	return sendRequest(l.AccountID, l.View, startDate.Format("2006-1-2"), endDate.Format("2006-1-2"), "json", fraudType, endpoint, l.ApiKey, filters)
+
+}
+
+func (l List) Accounts(fraudType string, startDate time.Time, endDate time.Time, filters ...filter) (KFResponse, error) {
+
+	endpoint := `https://fraud.api.kochava.com:8320/fraud/` + fraudEndpointMap[fraudType] + `/list/accounts`
+
+	return sendRequest(l.AccountID, l.View, startDate.Format("2006-1-2"), endDate.Format("2006-1-2"), "json", fraudType, endpoint, l.ApiKey, filters)
+
+}
+
+func (g GatherDataFrom) Accounts(fraudType string, startDate time.Time, endDate time.Time, filters ...filter) (KFResponse, error) {
+
+	endpoint := `https://fraud.api.kochava.com:8320/fraud/` + fraudEndpointMap[fraudType] + `/data`
+
+	return sendRequest(g.AccountID, g.View, startDate.Format("2006-1-2"), endDate.Format("2006-1-2"), "json", fraudType, endpoint, g.ApiKey, filters)
+
+}
+
+func (g GatherDataFrom) Apps(fraudType string, startDate time.Time, endDate time.Time, filters ...filter) (KFResponse, error) {
+
+	endpoint := `https://fraud.api.kochava.com:8320/fraud/` + fraudEndpointMap[fraudType] + `/app/data`
+
+	return sendRequest(g.AccountID, g.View, startDate.Format("2006-1-2"), endDate.Format("2006-1-2"), "json", fraudType, endpoint, g.ApiKey, filters)
+
+}
+
+func (g GatherDataFrom) SiteIds(fraudType string, startDate time.Time, endDate time.Time, filters ...filter) (KFResponse, error) {
+
+	endpoint := `https://fraud.api.kochava.com:8320/fraud/` + fraudEndpointMap[fraudType] + `/siteid/data`
+
+	return sendRequest(g.AccountID, g.View, startDate.Format("2006-1-2"), endDate.Format("2006-1-2"), "json", fraudType, endpoint, g.ApiKey, filters)
+
+}
+
+func (g GatherDataFrom) Trackers(fraudType string, startDate time.Time, endDate time.Time, filters ...filter) (KFResponse, error) {
+
+	endpoint := `https://fraud.api.kochava.com:8320/fraud/` + fraudEndpointMap[fraudType] + `/tracker/data`
+
+	return sendRequest(g.AccountID, g.View, startDate.Format("2006-1-2"), endDate.Format("2006-1-2"), "json", fraudType, endpoint, g.ApiKey, filters)
+
+}
+
+func (g GatherDataFrom) Networks(fraudType string, startDate time.Time, endDate time.Time, filters ...filter) (KFResponse, error) {
+
+	endpoint := `https://fraud.api.kochava.com:8320/fraud/` + fraudEndpointMap[fraudType] + `/network/data`
+
+	return sendRequest(g.AccountID, g.View, startDate.Format("2006-1-2"), endDate.Format("2006-1-2"), "json", fraudType, endpoint, g.ApiKey, filters)
+
+}
+
+type KFResponse struct {
+	MetaData struct {
+		Headers []string `json:"headers"`
+	} `json:"metaData"`
+	Data []struct {
+		AppName         string `json:"appName,omitempty"`
+		AppID           string `json:"appId,omitempty"`
+		NetworkName     string `json:"networkName,omitempty"`
+		NetworkID       string `json:"networkId,omitempty"`
+		ClickCt         int    `json:"clickCt,omitempty"`
+		SameAcctClickCt int    `json:"sameAcctClickCt,omitempty"`
+		DiffAcctClickCt int    `json:"diffAcctClickCt,omitempty"`
+		InstallCt       int    `json:"installCt,omitempty"`
+	} `json:"data"`
+}
+
+// SetThreshold returns an object with only the offending site_ids, IPs, and devices.
+// Use it to set the threshold you consider unacceptable.
+/*
+func (k *KFResponse) SetThreshold(metric string, comparator string, threshold int) error {
+
+	for i := range k.Data {
+		v := *k.FieldByName(metric)
 	}
 
-	var resp fraudresponse
-
-	err = json.Unmarshal(resBody, &resp)
-	if err != nil {
-		fmt.Println(err)
-		return err
-	}
-
-	fmt.Println(string(resBody))
-	fmt.Printf("%#v\n", resp)
-
-	return nil
+	return k, nil
 }
-
-func (a Account) ListNetworks(f string, startDate time.Time, endDate time.Time) error {
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println(err)
-
-		}
-	}()
-	return nil
-}
-
-func (a Account) ListAccounts(f string, startDate time.Time, endDate time.Time) error {
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println(err)
-
-		}
-	}()
-	return nil
-}
-
-func (a Account) FullData(f string, startDate time.Time, endDate time.Time) error {
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println(err)
-
-		}
-	}()
-	return nil
-}
-
-func (a Account) AccountsData(f string, startDate time.Time, endDate time.Time) error {
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println(err)
-
-		}
-	}()
-	return nil
-}
-
-func (a Account) AppData(f string, startDate time.Time, endDate time.Time) error {
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println(err)
-
-		}
-	}()
-	return nil
-}
-
-func (a Account) SiteIdData(f string, startDate time.Time, endDate time.Time) error {
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println(err)
-
-		}
-	}()
-	return nil
-}
-
-func (a Account) TrackerData(f string, startDate time.Time, endDate time.Time) error {
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println(err)
-
-		}
-	}()
-	return nil
+*/
+type Threshold struct {
+	AppName         string
+	AppID           string
+	NetworkName     string
+	NetworkID       string
+	ClickCt         int
+	SameAcctClickCt int
+	DiffAcctClickCt int
+	InstallCt       int
 }
